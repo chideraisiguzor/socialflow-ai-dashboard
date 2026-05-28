@@ -81,7 +81,13 @@ const envSchema = z.object({
   LOG_LEVEL: z.enum(['error', 'warn', 'info', 'http', 'verbose', 'debug', 'silly']).default('info'),
 
   // ── Alerting ──────────────────────────────────────────────────────────────
-  SLACK_WEBHOOK_URL: z.string().optional(),
+  SLACK_WEBHOOK_URL: z
+    .string()
+    .optional()
+    .refine(
+      (url) => !url || url.startsWith('https://hooks.slack.com/'),
+      'SLACK_WEBHOOK_URL must start with https://hooks.slack.com/',
+    ),
   PAGERDUTY_INTEGRATION_KEY: z.string().optional(),
   ALERT_ERROR_RATE_PERCENT: z.coerce.number().default(10),
   ALERT_RESPONSE_TIME_MS: z.coerce.number().default(5000),
@@ -176,6 +182,11 @@ function validateEnv(env: NodeJS.ProcessEnv = process.env): Env {
   console.log(`[Telemetry Diagnostics] OTEL_SERVICE_NAME=${result.data.OTEL_SERVICE_NAME}`);
   console.log(`[Telemetry Diagnostics] OTEL_DEBUG=${result.data.OTEL_DEBUG}`);
   console.log(`[Telemetry Diagnostics] LOG_LEVEL=${result.data.LOG_LEVEL}`);
+
+  // Warn if Slack webhook is not configured
+  if (!result.data.SLACK_WEBHOOK_URL) {
+    console.warn('[Startup Warning] SLACK_WEBHOOK_URL is not set — health alerts will not be sent to Slack');
+  }
 
   return result.data;
 }
