@@ -105,19 +105,31 @@ const serviceParamSchema = z.object({
  * /health/readiness:
  *   get:
  *     tags: [Health]
- *     summary: Readiness probe — reports integration enabled/disabled state
+ *     summary: Readiness probe — checks database connectivity and integration state
  *     security: []
  *     responses:
  *       200:
- *         description: All required integrations are configured
+ *         description: Database reachable and all required integrations are configured
  *       503:
- *         description: One or more integrations are disabled
+ *         description: Database unreachable or one or more integrations are disabled
  */
-router.get('/readiness', authenticate, (req, res) => {
+router.get('/readiness', authenticate, async (req, res) => {
   const integrations = getIntegrationSnapshot();
   if (!integrations) {
     return res.status(503).json({ status: 'starting', integrations: [] });
   }
+
+  const healthService = getHealthService();
+  const dbStatus = await healthService.checkDatabase();
+  if (dbStatus.status !== 'healthy') {
+    return res.status(503).json({
+      status: 'not_ready',
+      reason: 'database_unavailable',
+      database: dbStatus,
+      integrations,
+    });
+  }
+
   const disabled = integrations.filter((i) => !i.enabled);
   const status = disabled.length === 0 ? 'ready' : 'degraded';
   return res.status(disabled.length === 0 ? 200 : 503).json({ status, integrations });
