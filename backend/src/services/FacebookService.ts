@@ -54,8 +54,7 @@ export interface FacebookComment {
 }
 
 const API_BASE = 'https://graph.facebook.com/v18.0';
-// OAUTH_TOKEN_URL reserved for future token exchange implementation
-const _OAUTH_TOKEN_URL = 'https://graph.facebook.com/v18.0/oauth/access_token';
+// TODO: Implement token exchange endpoint (tracked in future issue)
 const FACEBOOK_AUTH_URL = 'https://www.facebook.com/v18.0/dialog/oauth';
 
 class FacebookService {
