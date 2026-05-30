@@ -17,8 +17,11 @@ dist-ssr
 dist-electron
 out
 release
+*.tsbuildinfo
 
 # Environment files
+.env
+.env.*
 *.local
 .env.local
 .env.*.local
@@ -29,9 +32,11 @@ test-accounts.json
 # Coverage reports
 coverage
 .nyc_output
+*.lcov
 
 # Test results
 test-results
+junit.xml
 
 # Test snapshots
 **/__snapshots__/
@@ -51,10 +56,6 @@ test-results
 # Project Tracking
 tasks.md
 task.md
-# Test coverage
-coverage
-.nyc_output
-*.lcov
 
 # Prisma
 prisma/dev.db
@@ -63,3 +64,17 @@ prisma/dev.db-journal
 # Uploads
 uploads/
 backend/uploads/
+
+# Terraform state and local overrides
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+.terraform/
+.terraform.lock.hcl
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.bak
