@@ -78,6 +78,27 @@ export const SubscriptionStore = {
     subscriptions.set(userId, updated);
     return updated;
   },
+
+  /**
+   * Atomically check balance and deduct credits in a single Map operation.
+   * Returns the new balance, or throws if the subscription is missing,
+   * inactive, or has insufficient credits.
+   */
+  checkAndDeduct: (userId: string, cost: number): number => {
+    const sub = subscriptions.get(userId);
+    if (!sub) throw new Error('No subscription found for user');
+    if (sub.status !== 'active' && sub.status !== 'trialing') {
+      throw new Error('Subscription is not active');
+    }
+    if (sub.creditsRemaining < cost) {
+      throw new Error(
+        `Insufficient credits. Required: ${cost}, available: ${sub.creditsRemaining}`,
+      );
+    }
+    const newBalance = sub.creditsRemaining - cost;
+    subscriptions.set(userId, { ...sub, creditsRemaining: newBalance, updatedAt: new Date() });
+    return newBalance;
+  },
 };
 
 export const CreditLogStore = {

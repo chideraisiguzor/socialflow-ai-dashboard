@@ -13,6 +13,18 @@ import {
 
 const logger = createLogger('billing-service');
 
+// Per-user mutex: chains promises so concurrent deductions for the same user
+// are serialised, preventing double-spend races when deductCredits becomes async.
+const userLocks = new Map<string, Promise<void>>();
+
+function withUserLock<T>(userId: string, fn: () => Promise<T>): Promise<T> {
+  const prev = userLocks.get(userId) ?? Promise.resolve();
+  let release!: () => void;
+  const next = new Promise<void>((resolve) => { release = resolve; });
+  userLocks.set(userId, next);
+  return prev.then(fn).finally(release);
+}
+
 function stripe(): Stripe {
   const key = process.env.STRIPE_SECRET_KEY;
   if (!key) throw new Error('STRIPE_SECRET_KEY is not set');
@@ -110,53 +122,30 @@ export class BillingService {
   }
 
   /**
-   * Deduct credits for an action. Throws if insufficient balance.
+   * Atomically deduct credits for an action inside a per-user lock.
+   * Throws if the subscription is missing, inactive, or has insufficient credits.
    * Returns updated balance.
    */
-  public deductCredits(userId: string, action: CreditAction): number {
-    const sub = SubscriptionStore.findByUserId(userId);
-    if (!sub) throw new Error('No subscription found for user');
-    if (sub.status !== 'active' && sub.status !== 'trialing') {
-      throw new Error('Subscription is not active');
-    }
-
-    const cost = ACTION_COST[action] ?? 1;
-    if (sub.creditsRemaining < cost) {
-      throw new Error(
-        `Insufficient credits. Required: ${cost}, available: ${sub.creditsRemaining}`,
-      );
-    }
-
-    const newBalance = sub.creditsRemaining - cost;
-    SubscriptionStore.patch(userId, { creditsRemaining: newBalance });
-    CreditLogStore.append({ userId, action, delta: -cost, balanceAfter: newBalance });
-
-    return newBalance;
+  public deductCredits(userId: string, action: CreditAction): Promise<number> {
+    return withUserLock(userId, async () => {
+      const cost = ACTION_COST[action] ?? 1;
+      const newBalance = SubscriptionStore.checkAndDeduct(userId, cost);
+      CreditLogStore.append({ userId, action, delta: -cost, balanceAfter: newBalance });
+      return newBalance;
+    });
   }
 
   /**
-   * Deduct credits proportional to actual token usage (1 credit per token).
+   * Atomically deduct credits proportional to actual token usage (1 credit per token).
    * Throws if the user has insufficient credits.
    * Returns updated balance.
    */
-  public deductCreditsForTokens(userId: string, tokens: number): number {
-    const sub = SubscriptionStore.findByUserId(userId);
-    if (!sub) throw new Error('No subscription found for user');
-    if (sub.status !== 'active' && sub.status !== 'trialing') {
-      throw new Error('Subscription is not active');
-    }
-
-    if (sub.creditsRemaining < tokens) {
-      throw new Error(
-        `Insufficient credits. Required: ${tokens}, available: ${sub.creditsRemaining}`,
-      );
-    }
-
-    const newBalance = sub.creditsRemaining - tokens;
-    SubscriptionStore.patch(userId, { creditsRemaining: newBalance });
-    CreditLogStore.append({ userId, action: 'ai:generate', delta: -tokens, balanceAfter: newBalance });
-
-    return newBalance;
+  public deductCreditsForTokens(userId: string, tokens: number): Promise<number> {
+    return withUserLock(userId, async () => {
+      const newBalance = SubscriptionStore.checkAndDeduct(userId, tokens);
+      CreditLogStore.append({ userId, action: 'ai:generate', delta: -tokens, balanceAfter: newBalance });
+      return newBalance;
+    });
   }
 
   /**

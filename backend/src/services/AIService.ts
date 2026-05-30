@@ -119,7 +119,7 @@ class AIService {
       );
 
       if (userId && result.totalTokens > 0) {
-        billingService.deductCreditsForTokens(userId, result.totalTokens);
+        await billingService.deductCreditsForTokens(userId, result.totalTokens);
       }
 
       if (userId) {
