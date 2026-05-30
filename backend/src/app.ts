@@ -15,6 +15,7 @@ import metricsRouter from './routes/metrics';
 import { swaggerSpec } from './config/swagger';
 import { createApolloServer } from './graphql';
 import { buildContext } from './graphql/context';
+import { authenticate } from './middleware/authenticate';
 
 // Initialise rate limiters (resolves Redis store in production)
 export const rateLimitersReady = initRateLimiters();
@@ -84,6 +85,7 @@ export const apolloReady = apolloServer.start().then(() => {
     '/graphql',
     cors<cors.CorsRequest>(),
     express.json(),
+    authenticate,
     expressMiddleware(apolloServer, { context: buildContext }),
   );
 });
