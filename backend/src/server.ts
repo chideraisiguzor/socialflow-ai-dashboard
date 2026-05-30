@@ -51,7 +51,7 @@ export const gracefulShutdown = async (
   opts?: { exit?: (code: number) => void; timeoutMs?: number },
 ): Promise<void> => {
   const doExit = opts?.exit ?? ((code) => process.exit(code));
-  const timeoutMs = opts?.timeoutMs ?? 30000;
+  const timeoutMs = opts?.timeoutMs ?? 270000;
   const srv = deps?.server ?? serverInstance;
   const ww = deps?.webhookWorker ?? webhookWorker;
   const tww = deps?.twitterWebhookWorker ?? twitterWebhookWorker;

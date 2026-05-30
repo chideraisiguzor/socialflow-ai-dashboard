@@ -18,7 +18,7 @@ spec:
         prometheus.io/path: "/metrics"
     spec:
       serviceAccountName: socialflow-backend
-      terminationGracePeriodSeconds: 60
+      terminationGracePeriodSeconds: 300
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000
