@@ -19,6 +19,21 @@ spec:
     spec:
       serviceAccountName: socialflow-backend
       terminationGracePeriodSeconds: 300
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app: socialflow-backend
+                topologyKey: kubernetes.io/hostname
+            - weight: 50
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app: socialflow-backend
+                topologyKey: topology.kubernetes.io/zone
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000
