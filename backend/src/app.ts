@@ -30,8 +30,24 @@ app.use(helmet());
 // Response compression (Gzip/Brotli) — before body parsing so all responses are eligible
 app.use(compressionMiddleware);
 
-// CORS — allow EventSource connections
-app.use(cors());
+// CORS — restrict to known frontend origins
+const ALLOWED_ORIGINS = (process.env.CORS_ALLOWED_ORIGINS ?? '')
+  .split(',')
+  .map((o) => o.trim())
+  .filter(Boolean);
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      if (!origin || ALLOWED_ORIGINS.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error(`CORS: origin ${origin} not allowed`));
+      }
+    },
+    credentials: true,
+  }),
+);
 app.use(requestIdMiddleware);
 app.use(sliMiddleware);
 app.use(express.json());
@@ -86,7 +102,16 @@ const apolloServer = createApolloServer();
 export const apolloReady = apolloServer.start().then(() => {
   app.use(
     '/graphql',
-    cors<cors.CorsRequest>(),
+    cors<cors.CorsRequest>({
+      origin: (origin, callback) => {
+        if (!origin || ALLOWED_ORIGINS.includes(origin)) {
+          callback(null, true);
+        } else {
+          callback(new Error(`CORS: origin ${origin} not allowed`));
+        }
+      },
+      credentials: true,
+    }),
     express.json(),
     authenticate,
     expressMiddleware(apolloServer, { context: buildContext }),
