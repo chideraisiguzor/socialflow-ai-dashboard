@@ -106,6 +106,12 @@ export const filesArchivedTotal = new Counter({
   registers: [register],
 });
 
+export const dataPruningErrorsTotal = new Counter({
+  name: 'data_pruning_errors_total',
+  help: 'Total number of data pruning job executions that failed',
+  registers: [register],
+});
+
 /** Map a request path to an SLI category. */
 export function resolveCategory(path: string): string {
   if (/^\/(health|status)/.test(path) || /\/health/.test(path)) return 'health';

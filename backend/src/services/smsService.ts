@@ -16,29 +16,35 @@ export class SmsService {
   private twilioClient: any;
   private fromNumber: string | undefined;
   private enabled: boolean;
+  private readonly initPromise: Promise<void>;
 
   constructor(config: SmsServiceConfig) {
     this.enabled = !!(config.accountSid && config.authToken && config.fromNumber);
     this.fromNumber = config.fromNumber;
 
     if (this.enabled) {
-      try {
-        // Lazy load Twilio SDK only if credentials are provided
-        const twilio = require('twilio');
-        this.twilioClient = twilio(config.accountSid, config.authToken);
-        logger.info('[sms-service] Twilio SMS service initialized');
-      } catch (error) {
-        logger.warn(
-          '[sms-service] Twilio SDK not available, SMS notifications will be disabled',
-        );
-        this.enabled = false;
-      }
+      // Lazy load Twilio SDK only if credentials are provided
+      this.initPromise = this.initTwilioClient(config.accountSid as string, config.authToken as string);
     } else {
       logger.info('[sms-service] SMS service disabled (missing credentials)');
+      this.initPromise = Promise.resolve();
+    }
+  }
+
+  private async initTwilioClient(accountSid: string, authToken: string): Promise<void> {
+    try {
+      const { default: twilio } = await import('twilio');
+      this.twilioClient = twilio(accountSid, authToken);
+      logger.info('[sms-service] Twilio SMS service initialized');
+    } catch (error) {
+      logger.warn('[sms-service] Twilio SDK not available, SMS notifications will be disabled');
+      this.enabled = false;
     }
   }
 
   async send(to: string, message: string): Promise<SmsResult> {
+    await this.initPromise;
+
     if (!this.enabled) {
       logger.warn('[sms-service] SMS send attempted but service is disabled');
       return {
